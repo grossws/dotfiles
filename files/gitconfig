@@ -1,0 +1,31 @@
+[user]
+	name = Konstantin Gribov
+	email = grossws@gmail.com
+	signingkey = E12884E17319D40C
+[color]
+	ui = auto
+[credential "https://github.com"]
+	username = grossws
+[credential "https://svn.apache.org"]
+  username = grossws
+[credential "https://git-wip-us.apache.org"]
+	username = grossws
+[credential "http://localhost:8080"]
+	username = root
+[credential]
+	username = gross
+	helper = cache
+[push]
+	default = upstream
+[core]
+	autocrlf = input
+	askpass = /usr/bin/ksshaskpass
+[merge]
+	conflictstyle = diff3
+	ff = false
+[color "diff"]
+	whitespace = red reverse
+[diff]
+	wsErrorHighlight = all
+[status]
+	submodulesummary = true

@@ -1,0 +1,47 @@
+#compdef vms
+#autoload
+
+__vms_envs() {
+  vms env-list
+}
+
+_vms() {
+  local context curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  local ret=1
+
+  _arguments -C \
+    '1:: :_vms_cmds' \
+    '-e[env-id]:environment:->envs' \
+    '*: :->vm_ids' \
+  && ret=0
+
+  case "$state" in
+    (envs)
+      local envs
+      envs=($(vms env-list))
+      _describe -t envs 'environments' envs && ret=0
+      ;;
+    (vm_ids)
+      _message 'vm_id..' && ret=0
+      ;;
+  esac
+}
+
+_vms_cmds() {
+  local commands;
+  commands=(
+    'create:create vm(s)'
+    'destroy:destroy vm(s)'
+    'env-list:list environments'
+  )
+  _describe -t commands 'vms commands' commands "$@"
+}
+
+_vms "$@"
+
+return
+
+# vim: ft=zsh:sw=2:sts=2:et:ai:
+

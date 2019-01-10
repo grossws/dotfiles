@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cleanup() {
+  rm -rf /tmp/gct
+  shred -u ~/.cache/tls-premaster
+}
+
+trap 'cleanup' TERM INT HUP
+
+export SSLKEYLOGFILE=~/.cache/tls-premaster 
+
+google-chrome-stable --user-data-dir=/tmp/tls-debug --incognito --bwci --no-first-run --start-maximized
+cleanup

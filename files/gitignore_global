@@ -1,0 +1,26 @@
+# IDEA project and module files
+*.iml
+/.idea/
+
+# editor and tmp files
+*~
+.*.swp
+*.rs.bk
+
+# Maven flattened POM
+.flattened-pom.xml
+
+# Wireshark/libpcap files
+*.pcap
+*.pcapng
+
+# Ansible facts cache and retry dirs
+.retry/
+.facts-cache/
+
+# Ansible Vault password file
+.vault-pass
+
+# Ansible Galaxy meta
+.galaxy_install_info
+

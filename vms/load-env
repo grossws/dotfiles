@@ -1,0 +1,19 @@
+ENV=
+if [ "$1" = "-e" ] ; then
+  ENV=${BASE}/env-$2
+  shift 2
+elif [ -r ${BASE}/env ] ; then
+  ENV=${BASE}/env
+elif [ -r ${BASE}/env-default ] ; then
+  ENV=${BASE}/env-default
+fi
+
+if [ -z "${ENV}" ] || [ ! -r "${ENV}" ] ; then
+  echo "env ${ENV} cannot be read"
+  exit 1
+fi
+
+echo -e "env: ${ENV}\n"
+source ${ENV}
+
+# vim:sw=2:sts=2:et:ai:ft=sh:

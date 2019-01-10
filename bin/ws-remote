@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [[ $# -lt 2 ]] ; then
+  echo "usage: $0 [user@]host [interface [tcpdump-args...]]"
+  exit 1
+fi
+
+REMOTE=${1}
+INTERFACE=${2:-any}
+shift 2
+
+exec wireshark-gtk -k -i <(ssh ${REMOTE} "tcpdump -s 0 -U -n -w - -i ${INTERFACE} $@")
+

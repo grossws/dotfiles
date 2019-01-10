@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+if [[ $# -eq 0 ]] ; then
+  echo "usage: $0 [-w] [user@]host.."
+  exit 1
+fi
+
+WRITE_ESP_SA=0
+if [[ $1 = "-w" ]] ; then
+  WRITE_ESP_SA=1
+  shift
+fi
+
+function get_sa() {
+  for host in "$@" ; do
+    ssh ${host} ip xfrm state 2> /dev/null | awk '/^src/ {
+      printf "\"IPv4\",\"%s\",\"%s\",", $2, $4; # src and dst ip
+      getline;
+      printf "\"%s\",", $4; # spi
+      getline;
+      getline;
+      printf "\"AES-GCM [RFC4106]\",\"%s\",\"ANY %s bit authentication [no checking]\",\"\"\n", $3, $4;
+    }'
+  done | sort | uniq
+}
+
+if [[ ${WRITE_ESP_SA} -eq 1 ]] ; then
+  get_sa "$@" > ~/.config/wireshark/esp_sa
+else
+  get_sa "$@"
+fi
+

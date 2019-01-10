@@ -1,0 +1,27 @@
+---
+
+- hosts: localhost
+  gather_facts: yes
+  tasks:
+  - name: private ssh configs
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/.ssh/config.d/{{ item | basename }}"
+    with_fileglob: "private/ssh/config.d/*"
+    tags: [ssh]
+
+  - name: private ssh per-project configs
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/.ssh/project.d/{{ item | basename }}"
+    with_fileglob: "private/ssh/project.d/*"
+    tags: [ssh]
+
+  - name: private vms configs
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/vms/{{ item | basename }}"
+    with_fileglob: "private/vms/*"
+    tags: [vms]
+
+# vim:filetype=yaml:shiftwidth=2:expandtab:autoindent:

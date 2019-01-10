@@ -1,0 +1,31 @@
+export LV_URL=${LV_URL:-qemu:///system}
+
+# export BASE_KS=base-ks.cfg
+# export ANACONDA_KS_OPT=inst.ks
+# export ANACONDA_REPO_OPT=inst.repo
+# export EXTRA_KERNEL_ARGS=
+
+export VM_CPU=${VM_CPU:-host}
+export VM_MEM=${VM_MEM:-1024}
+export VM_MAXMEM=${VM_MAXMEM:-2048}
+export VM_VCPUS=${VM_VCPUS:-1}
+export VM_MAXVCPUS=${VM_MAXVCPUS:-4}
+export VM_DISK=${VM_DISK:-10}
+export VM_NET=${VM_NET:-default}
+
+export INST_OS_FAMILY=${INST_OS_FAMILY:-rhel}
+export INST_OS=${INST_OS:-generic}
+
+export INST_TYPE=http
+# export INST_LOCATION=http://mirror.centos.org/centos-7/7/os/x86_64
+
+# for iso-installation, iso should be mounted/unpacked at ${INST_LOCATION} dir
+# export INST_TYPE=iso
+# export INST_LOCATION=/home/iso/centos7
+# export INST_ISO=/home/iso/centos7-dvd.iso
+
+# extra virt-install opts
+# export VI_OPTS=""
+
+# vim:ft=sh:
+

@@ -1,0 +1,230 @@
+#!/bin/bash
+
+BASE=${HOME}/vms
+
+function ks_path() {
+  echo "${BASE}/gen/ks-$1.cfg"
+}
+
+function preseed_path() {
+  echo "${BASE}/gen/preseed-$1.cfg"
+}
+
+function create_ks() {
+  vm_id=$1
+  vm_passwd_hash=$2
+  vm_grub_passwd_hash=${3:-$2}
+
+  ks=$(ks_path ${vm_id})
+  cp ${BASE}/${BASE_KS:=base-ks.cfg} ${ks}
+
+  vm_pubkey=${BASE}/${BASE_KS%.cfg}.pub
+
+  # inject correct vars for `vms!...` tags
+  sed -i "s|^vms!inject_rootpw *.*\$|rootpw --iscrypted ${vm_passwd_hash}|;" ${ks}
+  sed -i "s|^vms!inject_grubpw *.*\$|bootloader --iscrypted --password=${vm_grub_passwd_hash}|;" ${ks}
+  sed -i "s|^vms!inject_hostname *.*\$|network --hostname=${vm_id}.uw|;" ${ks}
+  if [[ -r ${vm_pubkey} ]] ; then
+    sed -i "s|^vms!inject_authorized_keys *.*\$|echo -e '# bootstrapped keys:\\\\n$(cat ${vm_pubkey})' > /root/.ssh/authorized_keys|" ${ks}
+  else
+    sed -i "s|^vms!inject_authorized_keys *.*\$|echo 'no pubkeys to inject to /root/.ssh/authorized_keys'|;" ${ks}
+  fi
+
+  echo "updated ${ks} for ${vm_id} (templated from ${BASE_KS})"
+}
+
+function create_preseed() {
+  vm_id=$1
+  vm_passwd_hash=$2
+  vm_grub_passwd_hash=${3:-$2}
+
+  preseed=$(preseed_path ${vm_id})
+  cp ${BASE}/${BASE_PRESEED:=preseed.cfg} ${preseed}
+
+  vm_pubkey=${BASE}/${BASE_PRESEED%.cfg}.pub
+
+  # inject correct vars for `vms!...` tags
+  sed -i 's|^vms!inject_rootpw *.*$|d-i passwd/root-password-crypted password '${vm_passwd_hash}'|;' ${preseed}
+  sed -i 's|^vms!inject_grubpw *.*$|d-i grub-installer/password-crypted password '${vm_passwd_hash}'|;' ${preseed}
+  sed -i "s|^vms!inject_hostname *.*$|d-i netcfg/hostname string ${vm_id}.uw|;" ${preseed}
+#  if [[ -r ${vm_pubkey} ]] ; then
+#    sed -i "s|^vms!inject_authorized_keys *.*$|echo -e '# bootstrapped keys:\\\\n$(cat ${vm_pubkey})' > /root/.ssh/authorized_keys|" ${ks}
+#  else
+#    sed -i "s|^vms!inject_authorized_keys *.*$|echo 'no pubkeys to inject to /root/.ssh/authorized_keys'|;" ${ks}
+#  fi
+}
+
+function create_vm() {
+  vm_id=$1
+
+  if [ -z "${VM_MAXMEM}" ] ; then
+    VM_MAXMEM=${VM_MEM:=1024}
+  fi
+
+  if [ -z "${VM_MAXVCPUS}" ] ; then
+    VM_MAXVCPUS=${VM_VCPUS:=1}
+  fi
+
+  echo "vm_id: ${vm_id}"
+  echo "libvirt url: ${LV_URL:=qemu:///system}"
+
+  echo "vm cpu=${VM_CPU:=host}"
+  echo "vm vcpus: cur=${VM_VCPUS:=1} max=${VM_MAXVCPUS}"
+  echo "vm mem: cur=${VM_MEM:=1024} max=${VM_MAXMEM}"
+  echo "net: ${VM_NET:=default}"
+  echo "disk: size=${VM_DISK:=10} pool=${LV_POOL:=lvm} prefix=${LV_PREFIX:=/dev/vg0}"
+
+  if [ "${INST_TYPE:=http}" = "http" ] ; then
+    echo "inst: location=${INST_LOCATION:=http://mirror.centos.org/centos-7/7/os/x86_64} repo=${INST_LOCATION}"
+    INST_REPO=${INST_LOCATION}
+    VI_CDROM_ATTACH=""
+  elif [ "${INST_TYPE}" = "iso" ] ; then
+    echo "inst: location=${INST_LOCATION:=/home/iso/centos7} repo=cdrom iso=${INST_ISO:=/home/iso/centos7-dvd.iso}"
+    INST_REPO=cdrom
+    VI_CDROM_ATTACH="--disk path=${INST_ISO},device=cdrom,readonly=on,shareable=yes"
+  else
+    echo "inst: !!! ${INST_TYPE}"
+    exit 1
+  fi
+
+  echo
+
+  if [[ ${INST_OS_FAMILY} = 'rhel' ]] ; then
+    ks=$(ks_path ${vm_id})
+    VI_BOOT_ARGS=(
+      "--initrd-inject"
+      "${ks}"
+      "--extra-args"
+      "${ANACONDA_KS_OPT:-inst.ks}=file:/${ks##*/} ${ANACONDA_REPO_OPT:-inst.repo}=${INST_REPO} ${EXTRA_KERNEL_ARGS}"
+    )
+  elif [[ ${INST_OS_FAMILY} = 'debian' ]] ; then
+    preseed=$(preseed_path ${vm_id})
+    preseed_md5=$(md5sum ${preseed} | cut -d' ' -f1)
+    VI_BOOT_ARGS=(
+      "--initrd-inject"
+      "${preseed}"
+      "--extra-args"
+      "auto preseed/file=/${preseed##*/} preseed/file/checksum=${preseed_md5} ${EXTRA_KERNEL_ARGS}"
+    )
+  else
+    echo "incorrect INST_OS_FAMILY=${INST_OS_FAMILY} (supported: rhel, debian)"
+    exit 1
+  fi
+
+  virt-install --connect ${LV_URL} --hvm --virt-type kvm --arch x86_64 \
+    --name ${vm_id} \
+    --os-type linux --os-variant ${INST_OS} \
+    --cpu ${VM_CPU} \
+    --vcpus vcpus=${VM_VCPUS},maxvcpus=${VM_MAXVCPUS} \
+    --memory memory=${VM_MEM},maxmemory=${VM_MAXMEM} \
+    --disk path=${LV_PREFIX}/vm_${vm_id/-/_},size=${VM_DISK},bus=virtio,io=native,sparse=no,cache=none \
+    ${VI_CDROM_ATTACH[@]:-} \
+    --video qxl --graphics spice \
+    --sound none \
+    --network network=${VM_NET},model=virtio \
+    --location ${INST_LOCATION} \
+    "${VI_BOOT_ARGS[@]:?boot args must be set}" \
+    --noreboot ${VI_OPTS[@]:-}
+#    --initrd-inject ${ks} \
+#    --extra-args "${ANACONDA_KS_OPT:-inst.ks}=file:/${ks##*/} ${ANACONDA_REPO_OPT:-inst.repo}=${INST_REPO} biosdevname=0 net.ifnames=0" \
+
+  if [ "${INST_TYPE}" = "iso" ] ; then
+    virsh --connect ${LV_URL} change-media ${vm_id} hda --eject
+  fi
+
+  virsh --connect ${LV_URL} start ${vm_id}
+
+  echo "initialized vm ${vm_id} @ ${LV_URL}"
+}
+
+destroy_vm() {
+  vm_id=$1
+
+  echo "vm_id: ${vm_id}"
+  echo "libvirt url: ${LV_URL:=qemu:///system}"
+  echo "lvm: pool=${LV_POOL:=lvm} prefix=${LV_PREFIX:=/dev/vg0}"
+  echo
+
+  virsh --connect ${LV_URL} destroy ${vm_id}
+  virsh --connect ${LV_URL} undefine ${vm_id}
+  virsh --connect ${LV_URL} vol-delete --pool ${LV_POOL} vm_${vm_id/-/_}
+
+  echo "destroyed vm ${vm_id} @ ${LV_URL}"
+}
+
+usage() {
+  echo "usage: $0 create|destroy [-e env-id] vm_id.."
+  echo "usage: $0 env-list"
+}
+
+
+
+CMD=$1
+case "${CMD}" in
+  create)
+    shift
+
+    source ${BASE}/load-env
+
+    if [ $# -eq 0 ] ; then
+      usage
+      exit 1
+    fi
+
+    for vm_id in "$@" ; do
+      vm_id=${vm_id}
+
+      mkdir -p ${BASE}/gen
+
+      PASSWD_FILE=${BASE}/gen/passwd
+      vm_passwd=
+      if [ -f ${PASSWD_FILE} ] ; then
+        vm_passwd=$(cat ${PASSWD_FILE})
+      else
+        vm_passwd=$(pwgen -B1 10)
+        echo -n ${vm_passwd} > ${PASSWD_FILE}
+      fi
+
+      echo "current password: ${vm_passwd} (also saved to ${PASSWD_FILE} file)"
+      vm_passwd_hash=$(python -c "import crypt; print(crypt.crypt(\"${vm_passwd}\"))")
+      vm_grub_passwd_hash=$(echo -e "${vm_passwd}\n${vm_passwd}" | grub-mkpasswd-pbkdf2 | awk '/pbkdf2/ { print $NF }')
+
+      echo "generating vm $vm_id configs"
+      if [[ ${INST_OS_FAMILY} = 'rhel' ]] ; then
+        create_ks ${vm_id} ${vm_passwd_hash} ${vm_grub_passwd_hash}
+      elif [[ ${INST_OS_FAMILY} = 'debian' ]] ; then
+        create_preseed ${vm_id} ${vm_passwd_hash} ${vm_grub_passwd_hash}
+      else
+        echo "incorrect INST_OS_FAMILY=${INST_OS_FAMILY} (supported: rhel, debian)"
+        exit 1
+      fi
+      create_vm ${vm_id}
+    done
+    ;;
+
+  destroy)
+    shift
+
+    source ${BASE}/load-env
+
+    if [ $# -eq 0 ] ; then
+      usage
+      exit 1
+    fi
+
+    for vm_id in "$@" ; do
+      destroy_vm ${vm_id}
+    done
+    ;;
+
+  env-list)
+    find ${BASE} -maxdepth 1 -type f -name 'env-*' | sed 's/.*env-//' | fgrep -v default | sort
+    ;;
+
+  *)
+    echo "unknown command ${CMD}: supported commands are: create, destroy"
+    exit 1
+    ;;
+esac
+
+# vim: et:sts=2:sw=2:

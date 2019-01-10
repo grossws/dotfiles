@@ -1,0 +1,4 @@
+StrictHostKeyChecking no
+UserKnownHostsFile /dev/null
+
+# vim: ai:sw=5:et:sts=5:ft=sshconfig:

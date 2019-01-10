@@ -1,0 +1,12 @@
+#!/bin/bash
+
+cleanup() {
+  rm -rf /tmp/gct
+}
+
+trap 'cleanup' TERM INT HUP
+
+cleanup
+google-chrome-stable --user-data-dir=/tmp/gct --incognito --bwci --no-first-run --window-position="0,0" --window-size="960,800"
+cleanup
+

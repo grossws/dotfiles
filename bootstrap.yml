@@ -1,0 +1,70 @@
+---
+
+- hosts: localhost
+  gather_facts: yes
+  tasks:
+  - name: directories (relative to home dir)
+    file:
+      path: "{{ ansible_user_dir }}/{{ item.dir }}"
+      mode: "{{ item.mode | d('u=rwx,go=rx') }}"
+      state: directory
+    with_items:
+    - {dir: .config, mode: 'u=rwx,go='}
+    - {dir: .config/git}
+    - {dir: .config/libvirt}
+    - {dir: .config/virt-viewer, mode: 'u=rwx,go='}
+    - {dir: .gnupg, mode: 'u=rwx,go='}
+    - {dir: .mplayer}
+    - {dir: .ssh, mode: 'u=rwx,go='}
+    - {dir: .ssh/config.d}
+    - {dir: .ssh/project.d}
+    - {dir: .vim}
+    - {dir: bin}
+    - {dir: vms/gen, mode: 'u=rwx,go='}
+    tags: always
+
+  - name: binaries/scripts
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/bin/{{ item | basename }}"
+      mode: 'u=rwx,go=rx'
+    with_fileglob: "bin/*"
+    tags: always
+
+  - name: generic config files
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ ansible_user_dir }}/{{ item.dest | d('.' + item.src) }}"
+      mode: "{{ item.mode | d('u=rw,go=r') }}"
+    with_items:
+    - {src: ansible-config.cfg, dest: .ansible.cfg}
+    - {src: chrome-flags.conf, dest: .config/}
+    - {src: gitconfig}
+    - {src: gitignore_global, dest: .config/git/ignore}
+    - {src: gpg.conf, dest: .gnupg/, mode: 'u=rw,go='}
+    - {src: gpg-agent.conf, dest: .gnupg/, mode: 'u=rw,go='}
+#    - {src: libvirt.conf, dest: .config/libvirt/}
+    - {src: makepkg.conf}
+    - {src: mongorc.js}
+#    - {src: mplayer.conf, dest: .mplayer/config}
+    - {src: ssh/config, dest: .ssh/}
+    - {src: ssh/snippet-nocheck, dest: .ssh/}
+    - {src: vimrc, dest: .vim/}
+    - {src: virt-viewer.conf, dest: .config/virt-viewer/settings}
+    - {src: zshrc}
+
+  - name: ssh configs
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/.ssh/config.d/{{ item | basename }}"
+    with_fileglob: "ssh/config.d/*"
+    tags: [ssh]
+
+  - name: vms configs
+    copy:
+      src: "{{ item }}"
+      dest: "{{ ansible_user_dir }}/vms/{{ item | basename }}"
+    with_fileglob: "vms/*"
+    tags: [vms]
+
+# vim:filetype=yaml:shiftwidth=2:expandtab:autoindent:

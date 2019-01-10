@@ -1,0 +1,37 @@
+colorscheme ron
+
+set encoding=utf-8
+set fileencodings=ucs-bom,utf-8,default,cp1251
+
+" magic in search + incremental search + ignorecase + highlight
+set hlsearch
+set incsearch
+set magic
+set ignorecase
+set smartcase
+
+" syntax highlight
+syntax on
+
+" wrap and invisible symbols
+set wrap
+set list
+set listchars=eol:⏎,tab:»·,trail:·,nbsp:⎵,extends:>,precedes:<
+
+" line numbers
+set number
+set relativenumber
+
+set shiftwidth=2
+
+if exists("&fixeol")
+  set nofixeol
+endif
+
+" ansible facts are stored in json files
+autocmd BufRead,BufNewFile ~/.ansible/facts-cache/* set filetype=json
+autocmd BufRead,BufNewFile ~/.ssh/config.d/* set filetype=sshconfig et sts=5 sw=5 ai
+autocmd BufRead,BufNewFile ~/.ssh/project.d/* set filetype=sshconfig et sts=5 sw=5 ai
+autocmd BufRead,BufNewFile Dockerfile.* set filetype=dockerfile
+autocmd BufRead,BufNewFile Dockerfile_* set filetype=dockerfile
+

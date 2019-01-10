@@ -1,0 +1,7 @@
+host gh
+     hostname github.com
+     user git
+
+host aur
+     hostname aur.archlinux.org
+     user aur
